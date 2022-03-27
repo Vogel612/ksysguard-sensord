@@ -1,0 +1,18 @@
+# Ksysguard-Sensord #
+
+<!-- TODO: Badges for coverage and test status -->
+
+A ksysguardd-alike that exposes aribtrary configured sensor data to a querying ksysguard instance.
+The protocol for the communication is described in: https://invent.kde.org/plasma/ksysguard/-/blob/master/ksysguardd/Porting-HOWTO
+
+### Installation ###
+
+The installation should be straightforward for most systems that include systemd.
+Installing the compiled binary to `/usr/bin` as well as installing and enabling the systemd unit is sufficient.
+
+The configuration of the sensors exposed by the daemon is expected in `/etc/ksysguard-sensord/config.d/`.
+The daemon itself is configured in `/etc/ksysguard-sensord/config`.
+
+### Configuration ###
+
+TBD
