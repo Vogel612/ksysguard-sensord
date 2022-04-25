@@ -8,19 +8,35 @@ pub struct Config {
 
     /// the default polling interval across sensors
     pub update_interval: u8,
+
+    pub monitors: Vec<MonitorDefinition>,
+}
+
+#[derive(Debug)]
+pub struct MonitorDefinition {
+    pub name: String,
+    pub command: String,
+    pub kind: MonitorKind,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum MonitorKind {
+    Polling,
+    Listening
 }
 
 impl Config {
     const DEFAULT_PORT: u16 = 3112;
     const DEFAULT_UPDATE_INTERVAL: u8 = 2;
 
-    pub fn read_config(path: & std::path::Path) -> Config {
+    pub fn read_config(path: &std::path::Path) -> Config {
         let mut config = Ini::new();
         config.load(path).unwrap();
-        
-        let mut cfg = Config { 
+
+        let mut cfg = Config {
             port: Config::DEFAULT_PORT,
             update_interval: Config::DEFAULT_UPDATE_INTERVAL,
+            monitors: Vec::new(),
         };
         match config.get("default", "port") {
             Some(port) => cfg.port = u16::from_str(&port).unwrap(),

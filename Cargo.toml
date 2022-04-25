@@ -7,6 +7,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-socket2 = "0.4.*"
+tokio = { version = "1", features = ["full"] }
 clap = { version = "3.1.*", features = ["derive"] }
 configparser = "3.0.*"
