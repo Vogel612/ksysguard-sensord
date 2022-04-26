@@ -1,3 +1,5 @@
+use crate::config::{  MonitorDefinition, MonitorKind };
+
 use std::process::{ Command, Stdio };
 
 use std::io::{ BufReader, BufRead };
@@ -6,6 +8,24 @@ pub trait Monitor {
     fn name(&self) -> &str;
     fn defined_command(&self) -> &str;
     fn get_value(&self) -> String;
+}
+
+pub fn create(definition: &MonitorDefinition) -> Box<dyn Monitor> {
+    if definition.kind == MonitorKind::Listening {
+        let lm = ListeningMonitor {
+            name: definition.name.to_owned(),
+            current_value: String::new(),
+            defined_command: definition.command.to_owned(),
+        };
+        lm.start();
+        return Box::new(lm);
+    } else {
+        let pm = PollingMonitor {
+            name: definition.name.to_owned(),
+            defined_command: definition.command.to_owned(),
+        };
+        return Box::new(pm);
+    }
 }
 
 pub struct PollingMonitor {
