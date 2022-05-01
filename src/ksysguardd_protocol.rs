@@ -58,7 +58,23 @@ impl Commands<'_> {
         }
         let is_info_query = command.ends_with("?");
         if is_info_query {
-            // currently unsupported
+            let monitor_name = command.strip_suffix("?").unwrap();
+            match self.monitors.get(monitor_name) {
+                Some(monitor) => {
+                    // FIXME write monitor info as result
+                    //  Single value sensors return [ description, min, max, unit ].join("\t")
+                    //   if min & max are 0, the UI is auto-ranged, the unit is optional (e.g. pscount)
+                    //  Multivalue sensors return a table spec in two lines
+                    //      -> tab-delimited headers and associated unit spec
+                    //       d: integer value
+                    //       D: integer value that should be localized in the frontend
+                    //       f: floating point value
+                    //       s: string value
+                    //       S: string value that needs to be translated
+                    //          Strings must be added to the ProcessList::columnDict dictionary.
+                },
+                None => {}
+            }
         } else {
             if self.monitors.contains_key(command) {
                 let mon = self.monitors.get(command).unwrap();
