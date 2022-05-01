@@ -30,6 +30,10 @@ struct Commands<'a> {
 // a description for a sensor
 // recommended "commands":
 // test, specific sensors involve sensors
+static PROTOCOL_COMMANDS: &[&str] = &[
+    "test", "quit", "monitors"
+];
+
 impl Commands<'_> {
     fn on_command(&self, input: &str) -> Either<String, Exit> {
         let command = input.trim();
@@ -38,10 +42,16 @@ impl Commands<'_> {
             return either::Right(Exit::Exit);
         }
         if command.starts_with("test") {
-            // FIXME actually check whether the command is supported
+            match command.split_once(" ") {
+                Some((_ ,checked)) => {
+                    if PROTOCOL_COMMANDS.contains(&checked) ||
+                        self.monitors.contains_key(checked) {
+                        return either::Left("1".into());
+                    }
+                },
+                None => {}
+            }
             return either::Left("0".into());
-            // checks whether a given command is supported
-            // current ksysguardd does not actually support this, soo ...
         }
         if command.starts_with("monitors") {
             return either::Left(itertools::join(self.monitors.keys(), "\n"));
@@ -59,9 +69,9 @@ impl Commands<'_> {
         // return UNKNOWN COMMAND if no matching monitor is found
         return either::Left(UNKNOWN_COMMAND.into());
     }
+
     // TODO "RECONFIGURE" over stderr??
     fn handle_client(&self, socket: & TcpStream) {
-        // let sock = &socket.into_std().expect("Could not convert TcpStream to native socket");
 
         let mut reader = BufReader::new(socket);
         let mut writer = BufWriter::new(socket);
