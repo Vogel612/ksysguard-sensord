@@ -41,11 +41,21 @@ pub struct ListeningMonitor {
     pub current_value: Arc<RwLock<String>>,
 }
 
+fn slice_command_spec<'a>(cmd_spec: &'a str) -> (String, Vec<String>) {
+    let parts: Vec<String> = cmd_spec.split(" ")
+        .map(|c| c.to_owned())
+        .collect();
+    return (parts[0].to_owned(), parts[1..].to_vec());
+}
+
+
 impl Monitor for PollingMonitor {
     fn name(&self) -> &str { todo!() }
     fn defined_command(&self) -> &str { todo!() }
     fn get_value(&self) -> String {
-        let output = Command::new(&*self.defined_command)
+        let (program, args) = slice_command_spec(&self.defined_command);
+        let output = Command::new(program)
+            .args(args)
             .stdout(Stdio::piped())
             .output()
             .expect(&*format!("Could not start subprocess for monitor {}.", self.name));
@@ -67,7 +77,9 @@ impl Monitor for ListeningMonitor {
     }
 
     fn start(&self) -> Option<std::thread::JoinHandle<()>> {
-        let mut child = Command::new(&*self.defined_command)
+        let (program, args) = slice_command_spec(&self.defined_command);
+        let mut child = Command::new(program)
+            .args(args)
             .stdout(Stdio::piped())
             .spawn()
             .expect(&*format!("Could not start subprocess for monitor {}.", self.name));
@@ -80,6 +92,8 @@ impl Monitor for ListeningMonitor {
             let mut reader = BufReader::new(stdout);
             let buffer = &mut String::new();
             loop {
+                // clear buffer because read_line appends
+                buffer.clear();
                 let bytes = reader.read_line(buffer);
                 match bytes {
                     Ok(count) if count == 0 => {
