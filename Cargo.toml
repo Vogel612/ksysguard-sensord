@@ -8,6 +8,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "3.1.*", features = ["derive"] }
+thread-control = "0.1.2"
 either = "1.6.1"
 itertools = "0.7.2"
 configparser = "3.0.*"

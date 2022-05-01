@@ -1,12 +1,13 @@
 use crate::config::{ Config };
 use crate::monitor::{ Monitor, create as create_monitor };
 
-// use tokio::net::{ TcpListener, TcpStream };
 use std::net::{ TcpListener, TcpStream };
 use std::collections::{ HashMap };
 
 use std::io::{ BufReader, BufWriter, BufRead, Write };
 use either::{ Either };
+
+use thread_control::{ make_pair };
 
 const UNKNOWN_COMMAND: &str = "UNKNOWN COMMAND";
 const MESSAGE_END: &str = "\nksysguardd> ";
@@ -141,8 +142,10 @@ impl Sensord {
             monitors: &known_monitors,
         };
         let mut join_handles: Vec<std::thread::JoinHandle<()>> = Vec::new();
+        let (flag, control) = make_pair();
+        let flag_ptr = std::sync::Arc::new(Option::Some(flag));
         for mon in known_monitors.values() {
-            match mon.start() {
+            match mon.start(flag_ptr.clone()) {
                 Some(handle) => { join_handles.push(handle) }
                 None => {}
             }
@@ -159,8 +162,8 @@ impl Sensord {
             }
         }
 
+        control.stop();
         for h in join_handles {
-            // FIXME interrupt / gracefully shut down monitor threads
             h.join();
         }
     }

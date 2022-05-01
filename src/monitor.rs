@@ -1,16 +1,17 @@
 use crate::config::{  MonitorDefinition, MonitorKind };
 
 use std::process::{ Command, Stdio };
-
 use std::io::{ BufReader, BufRead };
 
 use std::sync::{ RwLock, Arc };
+
+use thread_control::{ Flag };
 
 pub trait Monitor {
     fn name(&self) -> &str;
     fn defined_command(&self) -> &str;
     fn get_value(&self) -> String;
-    fn start(&self) -> Option<std::thread::JoinHandle<()>>;
+    fn start(&self, flag: Arc<Option<Flag>>) -> Option<std::thread::JoinHandle<()>>;
 }
 
 pub fn create(definition: &MonitorDefinition) -> Box<dyn Monitor> {
@@ -63,7 +64,7 @@ impl Monitor for PollingMonitor {
         return String::from_utf8(output.stdout)
             .expect(&*format!("Child process output for monitor {} was not parseable as UTF-8", self.name));
     }
-    fn start(&self) -> std::option::Option<std::thread::JoinHandle<()>> {
+    fn start(&self, _flag: Arc<Option<Flag>>) -> std::option::Option<std::thread::JoinHandle<()>> {
         return Option::None;
     }
 }
@@ -76,7 +77,7 @@ impl Monitor for ListeningMonitor {
         return read_guard.to_owned();
     }
 
-    fn start(&self) -> Option<std::thread::JoinHandle<()>> {
+    fn start(&self, flag: Arc<Option<Flag>>) -> Option<std::thread::JoinHandle<()>> {
         let (program, args) = slice_command_spec(&self.defined_command);
         let mut child = Command::new(program)
             .args(args)
@@ -110,6 +111,15 @@ impl Monitor for ListeningMonitor {
                     let mut guard = clone.write().unwrap();
                     *guard = buffer.to_owned();
                     // guard.drop();
+                }
+
+                match &*flag {
+                    Some(control_flag) => {
+                        if !control_flag.is_alive() {
+                            break;
+                        }
+                    },
+                    None => {}
                 }
             }
         });
