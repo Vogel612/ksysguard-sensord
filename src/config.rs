@@ -25,6 +25,15 @@ pub enum MonitorKind {
     Listening
 }
 
+fn get_sensor_kind(cfg_value: &str) -> MonitorKind {
+    if cfg_value.eq_ignore_ascii_case("listening") {
+        return MonitorKind::Listening;
+    } else {
+        // default to polling
+        return MonitorKind::Polling;
+    }
+}
+
 impl Config {
     const DEFAULT_PORT: u16 = 3112;
     const DEFAULT_UPDATE_INTERVAL: u8 = 2;
@@ -45,6 +54,29 @@ impl Config {
         match config.get("default", "update interval") {
             Some(interval) => cfg.update_interval = u8::from_str(&interval).unwrap(),
             None => {}
+        }
+
+        for section in config.sections() {
+            // section name is sensor name
+            match (config.get(&section, "command"), config.get(&section, "kind")) {
+                (Some(cmd), Some(kind)) => {
+                    cfg.monitors.push(MonitorDefinition{
+                        name: section.to_owned(),
+                        command: cmd.to_owned(),
+                        kind: get_sensor_kind(&kind)
+                    });
+                },
+                (Some(cmd), None) => {
+                    cfg.monitors.push(MonitorDefinition{
+                        name: section.to_owned(),
+                        command: cmd.to_owned(),
+                        kind: MonitorKind::Polling
+                    })
+                },
+                _ => {
+                    println!("Invalid sensor definition for sensor {}. No command was specified.", section);
+                }
+            }
         }
         return cfg;
     }

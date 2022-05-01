@@ -134,6 +134,7 @@ impl Sensord {
         }
 
         for h in join_handles {
+            // FIXME interrupt / gracefully shut down monitor threads
             h.join();
         }
     }
