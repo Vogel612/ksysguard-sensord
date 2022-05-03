@@ -1,23 +1,20 @@
-use crate::config::{ Config };
-use crate::monitor::{ Monitor, create as create_monitor };
+use crate::monitor::{ Monitor };
 
-use std::net::{ TcpListener, TcpStream };
+use either::{ Either };
+use std::io::{ BufRead, Write };
 use std::collections::{ HashMap };
 
-use std::io::{ BufReader, BufWriter, BufRead, Write };
-use either::{ Either };
-
-use thread_control::{ make_pair };
 
 const UNKNOWN_COMMAND: &str = "UNKNOWN COMMAND";
+const GREETING: &str = "";
 const MESSAGE_END: &str = "\nksysguardd> ";
-const DEFAULT_BIND_SPEC: &str = "0.0.0.0";
 
+#[derive(Debug, PartialEq)]
 enum Exit {
     Exit,
 }
 
-struct Commands<'a> {
+pub struct Commands<'a> {
     // a monitor has multiple sensors?!
     //   (like "nvidia-smi dmon" contains multiple information points)
     // it maintains their metainformation (datatype, value range, ...)
@@ -87,17 +84,17 @@ impl Commands<'_> {
         return either::Left(UNKNOWN_COMMAND.into());
     }
 
-    // TODO "RECONFIGURE" over stderr??
-    fn handle_client(&self, socket: & TcpStream) {
-
-        let mut reader = BufReader::new(socket);
-        let mut writer = BufWriter::new(socket);
-        writer.write(MESSAGE_END.as_bytes())
-            .and(writer.flush());
+    pub fn handle_client<I, O>(&self, input: &mut I, output: &mut O) -> ()
+        where I: BufRead,
+        O: Write
+    {
+        output.write(GREETING.as_bytes())
+            .and(output.write(MESSAGE_END.as_bytes()))
+            .and(output.flush());
         let mut line_buf = String::new();
         loop {
             line_buf.clear();
-            let bytes = reader.read_line(&mut line_buf);
+            let bytes = input.read_line(&mut line_buf);
             match bytes {
                 Ok(0) => {
                     // EOF 
@@ -108,9 +105,9 @@ impl Commands<'_> {
                     match result {
                         either::Left(response) => {
                             // compiler wants us to unwrap this and handle write errors
-                            writer.write(response.as_bytes())
-                                .and(writer.write(MESSAGE_END.as_bytes()))
-                                .and(writer.flush());
+                            output.write(response.as_bytes())
+                                .and(output.write(MESSAGE_END.as_bytes()))
+                                .and(output.flush());
                         },
                         either::Right(_) => {
                             // or alternatively exit?
@@ -126,45 +123,31 @@ impl Commands<'_> {
     }
 }
 
-pub struct Sensord {}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Sensord {
-    pub fn start(config: &Config) {
-        let mut known_monitors = HashMap::new();
-        for monitor_definition in config.monitors.iter() {
-            known_monitors.insert(monitor_definition.name.to_owned(), create_monitor(&monitor_definition));
-        }
-
-        // establish listening socket
-        let listener = TcpListener::bind((DEFAULT_BIND_SPEC, config.port))
-            .expect("Failed to bind listening port to accept connections.");
-        let protocol = Commands {
-            monitors: &known_monitors,
+    #[test]
+    fn quit_returns_exit() {
+        let iut = Commands {
+            monitors: &HashMap::new(),
         };
-        let mut join_handles: Vec<std::thread::JoinHandle<()>> = Vec::new();
-        let (flag, control) = make_pair();
-        let flag_ptr = std::sync::Arc::new(Option::Some(flag));
-        for mon in known_monitors.values() {
-            match mon.start(flag_ptr.clone()) {
-                Some(handle) => { join_handles.push(handle) }
-                None => {}
-            }
-        }
-        loop {
-            match listener.accept() {
-                Ok((socket, _)) => {
-                    protocol.handle_client(&socket);
-                    break;
-                },
-                Err(_e) => {
-                    println!("Failed to accept a connection to the TCP listen port!");
-                }
-            }
-        }
+        assert_eq!(iut.on_command("quit"), either::Right(Exit::Exit));
+    }
+    
+    #[test]
+    fn no_monitors() {
+        let iut = Commands {
+            monitors: &HashMap::new(),
+        };
+        assert_eq!(iut.on_command("monitors"), either::Left("".to_owned()));
+    }
 
-        control.stop();
-        for h in join_handles {
-            h.join();
-        }
+    #[test]
+    fn test_monitors_supported() {
+        let iut = Commands {
+            monitors: &HashMap::new(),
+        };
+        assert_eq!(iut.on_command("test monitors"), either::Left("1".to_owned()));
     }
 }

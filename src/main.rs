@@ -45,7 +45,7 @@ mod main {
             Some(port) => config.port = port,
             None => {}
         }
-        this::ksysguardd_protocol::Sensord::start(&config);
+        this::server::Sensord::start(&config);
     }
 }
 

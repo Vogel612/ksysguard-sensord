@@ -1,3 +1,4 @@
 pub mod config;
-pub mod ksysguardd_protocol;
+pub mod server;
+mod protocol;
 mod monitor;
