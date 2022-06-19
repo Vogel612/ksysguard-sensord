@@ -1,4 +1,5 @@
-use crate::monitor::{ Monitor };
+use crate::monitor::SensorMeta::{ Single, Multi };
+use crate::monitor::{ Monitor, AsOutput };
 
 use either::{ Either };
 use std::io::{ BufRead, Write };
@@ -59,17 +60,14 @@ impl Commands<'_> {
             let monitor_name = command.strip_suffix("?").unwrap();
             match self.monitors.get(monitor_name) {
                 Some(monitor) => {
-                    // FIXME write monitor info as result
-                    //  Single value sensors return [ description, min, max, unit ].join("\t")
-                    //   if min & max are 0, the UI is auto-ranged, the unit is optional (e.g. pscount)
-                    //  Multivalue sensors return a table spec in two lines
-                    //      -> tab-delimited headers and associated unit spec
-                    //       d: integer value
-                    //       D: integer value that should be localized in the frontend
-                    //       f: floating point value
-                    //       s: string value
-                    //       S: string value that needs to be translated
-                    //          Strings must be added to the ProcessList::columnDict dictionary.
+                    match monitor.meta() {
+                        Single(sv_meta) => {
+                            return Either::Left(sv_meta.as_output().to_string())
+                        }
+                        Multi(mv_meta) => {
+                            return Either::Left(mv_meta.as_output().to_string())
+                        }
+                    }
                 },
                 None => {}
             }

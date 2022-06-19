@@ -17,12 +17,21 @@ pub struct MonitorDefinition {
     pub name: String,
     pub command: String,
     pub kind: MonitorKind,
+    pub description: String,
+    pub value_kind: ValueKind,
+    pub value_spec: String
 }
 
 #[derive(Debug, PartialEq)]
 pub enum MonitorKind {
     Polling,
     Listening
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValueKind {
+    Single,
+    Multi
 }
 
 fn get_sensor_kind(cfg_value: &str) -> MonitorKind {
@@ -33,6 +42,16 @@ fn get_sensor_kind(cfg_value: &str) -> MonitorKind {
         return MonitorKind::Polling;
     }
 }
+
+fn get_value_kind(cfg_value: &str) -> ValueKind {
+    if cfg_value.eq_ignore_ascii_case("multi") {
+        return ValueKind::Multi;
+    } else {
+        // assume Single values from the monitor
+        return ValueKind::Single;
+    }
+}
+
 
 impl Config {
     const DEFAULT_PORT: u16 = 3112;
@@ -57,26 +76,33 @@ impl Config {
         }
 
         for section in config.sections() {
-            // section name is sensor name
-            match (config.get(&section, "command"), config.get(&section, "kind")) {
-                (Some(cmd), Some(kind)) => {
-                    cfg.monitors.push(MonitorDefinition{
-                        name: section.to_owned(),
-                        command: cmd.to_owned(),
-                        kind: get_sensor_kind(&kind)
-                    });
-                },
-                (Some(cmd), None) => {
-                    cfg.monitors.push(MonitorDefinition{
-                        name: section.to_owned(),
-                        command: cmd.to_owned(),
-                        kind: MonitorKind::Polling
-                    })
-                },
-                _ => {
-                    println!("Invalid sensor definition for sensor {}. No command was specified.", section);
-                }
+            if section.eq_ignore_ascii_case("default") {
+                continue;
             }
+            // section name is sensor name
+            let name = section.to_owned();
+            let command = config.get(&section, "command")
+                .expect(&format!("Invalid sensor definition for sensor {}. No command was specified.", section))
+                .to_owned();
+            let kind = config.get(&section, "kind")
+                .map(|x| get_sensor_kind(&x))
+                .unwrap_or(MonitorKind::Polling);
+            let description = config.get(&section, "description")
+                .unwrap_or("".into());
+            let value_kind = config.get(&section, "value_kind")
+                .map(|x| get_value_kind(&x))
+                .unwrap_or(ValueKind::Single);
+            let value_definition = config.get(&section, "value_definition")
+                .unwrap_or("0 0 ?".into());
+
+            cfg.monitors.push(MonitorDefinition{
+                name: name,
+                command: command,
+                kind: kind,
+                description: description,
+                value_kind: value_kind,
+                value_spec: value_definition,
+            });
         }
         return cfg;
     }
